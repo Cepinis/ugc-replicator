@@ -9,7 +9,7 @@ swaps the person and the headline in the hook, and glues the original showcase b
 brew install ffmpeg python
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env   # fill in OPENAI_API_KEY, KIE_API_KEY, APIFY_TOKEN
+cp .env.example .env   # fill in KIE_API_KEY (and APIFY_TOKEN for fetch)
 ```
 
 ## Use
@@ -40,8 +40,8 @@ Each video gets a folder in `outputs/` with `final.mp4` plus the in-between file
 1. **fetch**: Apify `clockworks/tiktok-scraper` downloads the mp4s.
 2. **cut**: ffmpeg scene detection; the first hard cut after 0.8s (within the first 8s) is the hook end.
    Override with `--cut`, or tune `--threshold` (default 0.3; lower finds softer cuts).
-3. **headline**: an OpenAI model reads the current headline off a hook frame and writes a new one.
-4. **avatar**: `gpt-image-2` redraws a hook frame with a different, ordinary-looking person.
+3. **headline**: a GPT model on kie.ai reads the current headline off a hook frame and writes a new one.
+4. **avatar**: GPT Image 2 on kie.ai redraws a hook frame with a different, ordinary-looking person.
 5. **swap**: Seedance 2.5 on kie.ai edits the hook: new person from the avatar image, new headline, same motion.
 6. **join**: ffmpeg puts the new hook (with the original hook audio) in front of the original showcase, 1080x1920 @ 30fps.
 

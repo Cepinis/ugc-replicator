@@ -1,15 +1,14 @@
-"""OpenAI calls: generate a new avatar image and pick/generate a headline."""
-import base64
+"""New avatar (GPT Image 2) and headline (GPT chat), both through kie.ai."""
 import json
 import os
 import random
+import re
 from pathlib import Path
 
-from openai import OpenAI
+from . import kie
 
-IMAGE_MODEL = os.getenv("OPENAI_IMAGE_MODEL", "gpt-image-2")
-IMAGE_SIZE = os.getenv("OPENAI_IMAGE_SIZE", "1024x1536")
-TEXT_MODEL = os.getenv("OPENAI_TEXT_MODEL", "gpt-5-mini")
+IMAGE_MODEL = "gpt-image-2-image-to-image"
+TEXT_MODEL = os.getenv("KIE_TEXT_MODEL", "gpt-5-5")
 
 # Rough variety so every video doesn't get the same person.
 PEOPLE = [
@@ -22,8 +21,6 @@ LOOKS = [
     "hair tied back, light freckles", "work-from-home look, cardigan",
 ]
 
-client = OpenAI()
-
 
 def make_avatar(frame_path, out_path, person=None):
     """Re-imagine the hook's frame with a different, ordinary-looking person in the same setup."""
@@ -35,9 +32,10 @@ def make_avatar(frame_path, out_path, person=None):
         "and a similar room/background. Shot on an iPhone front camera, slightly soft, no beauty filter. "
         "Remove all text and captions from the image."
     )
-    with open(frame_path, "rb") as f:
-        res = client.images.edit(model=IMAGE_MODEL, image=f, prompt=prompt, size=IMAGE_SIZE)
-    Path(out_path).write_bytes(base64.b64decode(res.data[0].b64_json))
+    urls, _ = kie.run_task(IMAGE_MODEL, {
+        "prompt": prompt, "input_urls": [kie.upload(frame_path)], "aspect_ratio": "9:16", "resolution": "1K",
+    }, poll_s=5)
+    kie.download(urls[0], out_path)
     return person
 
 
@@ -55,7 +53,6 @@ def headline(frame_path, examples_file, winners_file, reuse=False):
     """
     examples = _lines(examples_file)
     winners = _lines(winners_file)
-    img = base64.b64encode(Path(frame_path).read_bytes()).decode()
     task = (
         "This is a frame from a TikTok UGC hook video. Read the headline text overlaid at the top exactly.\n"
         "Then write ONE new headline for a similar video: same vibe, length and casing style, "
@@ -63,15 +60,11 @@ def headline(frame_path, examples_file, winners_file, reuse=False):
     )
     if examples or winners:
         task += "Headlines in the style we want:\n" + "\n".join(f"- {h}" for h in (winners + examples)[:60]) + "\n"
-    task += 'Reply with JSON only: {"original": "...", "new": "..."}'
-    res = client.chat.completions.create(
-        model=TEXT_MODEL,
-        response_format={"type": "json_object"},
-        messages=[{"role": "user", "content": [
-            {"type": "text", "text": task},
-            {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{img}"}},
-        ]}],
-    )
-    data = json.loads(res.choices[0].message.content)
+    task += 'Reply with JSON only, no other text: {"original": "...", "new": "..."}'
+    reply = kie.chat(TEXT_MODEL, task, kie.upload(frame_path))
+    match = re.search(r"\{.*\}", reply, re.S)
+    if not match:
+        raise RuntimeError(f"headline model gave no JSON: {reply[:200]}")
+    data = json.loads(match.group(0))
     new = random.choice(winners) if reuse and winners else data["new"]
     return data.get("original") or None, new
