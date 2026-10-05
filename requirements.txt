@@ -1,0 +1,4 @@
+openai>=2.0
+apify-client>=1.7
+requests
+python-dotenv
