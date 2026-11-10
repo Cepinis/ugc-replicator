@@ -1,4 +1,22 @@
-# UGC video replicator
+# Drama ads + UGC replicator
+
+## Drama ads (new)
+
+Premise in, finished 9:16 micro-drama ad out. Double-click **Start Drama Ads.command**, and a page opens in the browser.
+
+1. **Script**: Claude writes the story beat by beat (hook, villain, proof, product, payoff, CTA). Rewrite with notes until it's right.
+2. **Character cards**: GPT Image 2 makes a front, side and back image of every character (plus your product image, if given).
+3. **Director**: Claude splits the script into clips of exact whole-second lengths, adds b-roll, and writes a second-by-second prompt per clip. Every prompt can be edited on the page.
+4. **Clips**: Seedance 2.5 makes each clip with sound and dialogue; character cards are attached as `@image1..N` so faces stay consistent.
+5. **Join**: ffmpeg glues the clips in order, nothing trimmed. Result: `projects/<name>/final.mp4`.
+
+All AI calls go through Apimart with one key: put `APIMART_API_KEY=...` in `.env`.
+The writer, director and character prompts live in `drama/prompts/` if you want to tweak the style.
+No clicking: `python -m drama make "premise" --product "..." --seconds 45`.
+
+---
+
+## UGC video replicator (old tool)
 
 Takes TikTok videos shaped like "≤5s face-cam hook with a headline, then phone-filming-phone app showcase",
 swaps the person and the headline in the hook, and glues the original showcase back on. 9:16 throughout.
